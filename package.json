@@ -1,0 +1,14 @@
+{
+  "name": "talent-decode",
+  "version": "1.0.0",
+  "private": true,
+  "description": "天赋解码 · 职业倾向深度版：62 题本地计算的天赋测评（纯静态）",
+  "scripts": {
+    "serve": "node tools/serve.js 4321",
+    "shoot": "node tools/shoot.js",
+    "audit": "node tools/audit.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

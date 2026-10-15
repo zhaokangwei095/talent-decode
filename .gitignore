@@ -1,0 +1,7 @@
+node_modules/
+package-lock.json
+shots/
+.vercel
+*.log
+.DS_Store
+.claude/

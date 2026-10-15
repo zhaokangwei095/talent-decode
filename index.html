@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>天赋解码 · 职业倾向深度版</title>
+<meta name="description" content="一份 62 题的天赋与职业倾向测评。基于行为情境、强制取舍与兴趣三层提问，输出可执行的天赋报告与 7 天验证计划。全程本地计算。">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ece7dd'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23b03a24' font-family='serif'%3E%E8%B5%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/design.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <span class="wordmark">天赋解码</span>
+    <span class="doc-id">Dossier · 职业倾向 · 2026</span>
+  </header>
+
+  <!-- ==================== 封面 ==================== -->
+  <section id="screen-cover" class="screen cover" aria-labelledby="coverTitle">
+    <p class="kicker">Talent Dossier / 职业倾向深度版</p>
+    <h1 id="coverTitle">发现你的<br><em>天赋组合</em></h1>
+    <p class="sub">多数测评只问你"你觉得自己擅长什么"。这一份换了问法：先看你实际怎么做事的，再问你愿意把时间花在哪，最后才做判断。</p>
+
+    <div class="facts">
+      <div><b>62</b><span>道题 · 三层提问</span></div>
+      <div><b>12</b><span>项天赋维度</span></div>
+      <div><b>8-10</b><span>分钟</span></div>
+      <div><b>0</b><span>次数据上传</span></div>
+    </div>
+
+    <button class="act" id="btnStart">
+      开始测评
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="square"/>
+      </svg>
+    </button>
+    <p id="resumeNote" hidden style="margin-top:.75rem;font-size:.8125rem;color:var(--ink-3)"></p>
+
+    <section class="sec">
+      <div class="sec-head">
+        <span class="sec-num">§01</span>
+        <h2 class="sec-title">测评的四个大方向</h2>
+        <span class="sec-note">下面拆成 12 项</span>
+      </div>
+      <div id="clusterIndex"></div>
+    </section>
+
+    <section class="sec">
+      <div class="sec-head">
+        <span class="sec-num">§02</span>
+        <h2 class="sec-title">这一份和常见的有什么不同</h2>
+      </div>
+      <div class="duo">
+        <div class="cell ok">
+          <h4>不问"你擅长吗"</h4>
+          <p>题目描述的是具体可观察的行为和场景，你回答"这件事多久发生一次"，而不是给自己打分。人对自己的评价最容易失真，对经历的记忆相对可靠。</p>
+        </div>
+        <div class="cell risk">
+          <h4>用取舍代替"我都行"</h4>
+          <p>第二部分每题只有两个方向，必须选一边。这类强制取舍比自评更能测出你真实的工作模式，也更难伪装成"理想中的自己"。</p>
+        </div>
+        <div class="cell">
+          <h4>能力和兴趣分开算</h4>
+          <p>做得动和愿意做是两件事，混在一起算是最常见的错误。本报告把两组分数分开呈现，再叠加推导职业方向。</p>
+        </div>
+        <div class="cell">
+          <h4>结论必须能落地</h4>
+          <p>报告里不止有类型名。每一项优势都配了会踩的坑和马上能试的做法，最后给一份 7 天行动清单。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <div class="sec-head">
+        <span class="sec-num">§03</span>
+        <h2 class="sec-title">作答说明</h2>
+      </div>
+      <ul class="ticks">
+        <li>按第一反应作答。反复权衡出来的答案，往往是你"希望成为"的样子，而不是真实的你。</li>
+        <li>没有对错，也不存在好天赋和坏天赋。优势用错场合就是短板。</li>
+        <li>如果你正处在剧烈变化期（换城市、换行业），结果会偏向当下的状态，可以过一段时间再测一次。</li>
+        <li>中途可以离开，进度会自动保留在这台设备上，回来接着做。</li>
+      </ul>
+      <button class="act act--wide" id="btnStart2">开始测评</button>
+    </section>
+
+    <div class="colophon">
+      <span>全程本地计算 · 答案不上传</span>
+      <span>理论框架：加德纳多元智能 · 霍兰德职业兴趣</span>
+    </div>
+  </section>
+
+  <!-- ==================== 答题 ==================== -->
+  <section id="screen-quiz" class="screen" hidden aria-live="polite">
+    <div class="quiz-top">
+      <div class="row">
+        <button class="btn-quiet" id="btnQuit">‹ 退出</button>
+        <span id="partLabel">第一部分 · 行为表现</span>
+        <span id="qCounter">01 / 62</span>
+      </div>
+      <div class="rail" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="railBar">
+        <i id="railFill" style="width:0%"></i>
+      </div>
+    </div>
+    <div id="quizBody"></div>
+  </section>
+
+  <!-- ==================== 报告 ==================== -->
+  <section id="screen-report" class="screen" hidden>
+    <div id="reportBody"></div>
+  </section>
+
+</main>
+
+<script src="data/talent-data.js"></script>
+<script src="data/talent-data-extra.js"></script>
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/render.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
