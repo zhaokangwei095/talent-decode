@@ -2,6 +2,13 @@
 
 一份 62 题的职业天赋测评，纯静态、零依赖、本地计算。基于对 `talent.easydj.cloud` 的选题抓取后重新设计。
 
+## 在线访问
+
+- 站点：https://talent-decode.vercel.app
+- 源码：https://github.com/zhaokangwei095/talent-decode
+
+部署细节与本机环境注意事项见 `docs/部署说明.md`。
+
 ## 快速开始
 
 ```powershell
