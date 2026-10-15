@@ -1,0 +1,13 @@
+node_modules
+shots
+package-lock.json
+__pycache__
+*.pyc
+.git
+.vercel
+.claude
+.workbuddy
+.qoder
+tools
+data-source
+docs
