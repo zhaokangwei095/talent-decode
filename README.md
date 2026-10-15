@@ -4,7 +4,8 @@
 
 ## 在线访问
 
-- 站点：https://talent-decode.vercel.app
+- 国内访问（魔搭创空间，公开）：https://modelscope.cn/studios/zkw095/talent-decode
+- 海外访问：https://talent-decode.vercel.app
 - 源码：https://github.com/zhaokangwei095/talent-decode
 
 部署细节与本机环境注意事项见 `docs/部署说明.md`。
