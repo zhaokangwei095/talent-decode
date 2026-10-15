@@ -1,7 +1,7 @@
 node_modules/
 package-lock.json
 shots/
-.claude/
+.agents/
 .vercel
 __pycache__/
 *.pyc
@@ -9,5 +9,3 @@ assets/fonts/_raw/
 *.log
 .DS_Store
 .claude/
-
-.vercel
