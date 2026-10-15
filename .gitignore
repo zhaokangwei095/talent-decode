@@ -2,6 +2,7 @@ node_modules/
 package-lock.json
 shots/
 .agents/
+skills-lock.json
 .vercel
 __pycache__/
 *.pyc
