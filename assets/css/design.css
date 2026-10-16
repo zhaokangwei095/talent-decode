@@ -114,7 +114,7 @@ button { font: inherit; color: inherit; }
 
 /* 统一可见焦点 */
 :where(a, button, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--seal);
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
 
@@ -413,13 +413,15 @@ button { font: inherit; color: inherit; }
 }
 .opt .label { font-size: .9375rem; }
 .opt:hover { border-color: var(--ink-3); background: var(--paper-3); }
+/* 选中态用石绿，不用朱砂：朱砂在本设计里专用于"警示/强调"，
+   而选中是"确认"动作，语义必须分开，否则用户会把选中读成报错。 */
 .opt[aria-pressed='true'] {
-  border-color: var(--seal);
-  border-left-color: var(--seal);
-  background: var(--seal-soft);
+  border-color: var(--jade);
+  border-left-color: var(--jade);
+  background: var(--jade-soft);
   color: var(--ink);
 }
-.opt[aria-pressed='true'] .mark { color: var(--seal); font-weight: 700; }
+.opt[aria-pressed='true'] .mark { color: var(--jade); font-weight: 700; }
 
 /* 取舍题：A / B 两栏 */
 .fork { display: grid; gap: var(--s3); margin-top: var(--s5); }

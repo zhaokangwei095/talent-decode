@@ -118,6 +118,12 @@
     var wrap = el('div');
     wrap.appendChild(el('div', 'q-no', '第 ' + (step.part === 'A' ? '1' : step.part === 'B' ? '2' : '3') +
       ' 部分 · 第 ' + numInPart + ' / ' + numInPartTotal + ' 题'));
+
+    // 续做时明确告知已答进度，避免"进度跳了但像是新题"的困惑
+    if (answeredCount() > 0) {
+      wrap.appendChild(el('p', 'q-hint', '已答 ' + answeredCount() + ' / ' + TOTAL_ITEMS +
+        ' 题，之前的选择已保留。'));
+    }
     wrap.appendChild(el('p', 'q-text', step.data.text));
 
     if (step.part === 'A') {
@@ -262,13 +268,22 @@
     var btn = $('btnStart');
     if (saved && done > 0 && done < TOTAL_ITEMS) {
       note.hidden = false;
-      note.textContent = '上次做到第 ' + (done + 1) + ' 题，进度已保存。点"开始测评"会从这里继续。';
+      note.textContent = '上次答到第 ' + (done + 1) + ' 题（共 ' + TOTAL_ITEMS +
+        ' 题），进度已存在本机。两个入口都会从这里继续；想从头答，请点下方"重新开始"。';
       btn.textContent = '继续上次';
       btn.appendChild(arrowSVG());
+      var bottom = $('btnStart2');
+      if (bottom) bottom.textContent = '继续上次';
+      var reset = $('btnRestart');
+      if (reset) reset.hidden = false;
     } else {
       note.hidden = true;
       btn.textContent = '开始测评';
       btn.appendChild(arrowSVG());
+      var bottom2 = $('btnStart2');
+      if (bottom2) bottom2.textContent = '开始测评';
+      var reset2 = $('btnRestart');
+      if (reset2) reset2.hidden = true;
     }
   }
 
@@ -296,6 +311,22 @@
   /* ---------------- 事件绑定 ---------------- */
   $('btnStart').addEventListener('click', start);
   $('btnStart2').addEventListener('click', start);
+
+  var restartBtn = $('btnRestart');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', function () {
+      if (!confirm('重新开始会清空已答的 ' + answeredCount() + ' 题，从第一题重新作答。确定吗？')) return;
+      clearSave();
+      state = {
+        at: 0,
+        a: new Array(B.partA.length).fill(null),
+        b: new Array(B.partB.length).fill(null),
+        c: new Array(B.partC.length).fill(null)
+      };
+      show('screen-quiz');
+      renderStep();
+    });
+  }
 
   $('btnQuit').addEventListener('click', function () {
     save();
