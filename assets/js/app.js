@@ -31,6 +31,9 @@
     c: new Array(B.partC.length).fill(null)
   };
 
+  /* 续做标记：只在从封面进入后渲染的第一道题上提示一次 */
+  var resumeHintPending = false;
+
   var PART_META = {
     A: { label: '第一部分 · 行为表现', title: '先看你怎么做事', sub: '接下来的 36 题，描述的是具体行为和场景。请按最近三个月的真实情况回答：这件事多久发生一次。' },
     B: { label: '第二部分 · 工作模式', title: '两个方向，选一边', sub: '这 8 题没有中间选项。如果两边都不完全符合，选你更靠近的那一侧——差距比绝对值更重要。' },
@@ -55,18 +58,48 @@
       state.c.filter(function (v) { return v !== null; }).length;
   }
 
+  /* 存档里的已答题数：封面与续做判断都读它，避免和内存态混用。
+     逐段取长度，个别段字段缺失（旧存档）时也不会抛错。 */
+  function progressOf(p) {
+    if (!p) return 0;
+    return ['a', 'b', 'c'].reduce(function (sum, k) {
+      var arr = Array.isArray(p[k]) ? p[k] : [];
+      return sum + arr.filter(function (v) { return v !== null && v !== undefined; }).length;
+    }, 0);
+  }
+
   /* ---------------- 存档 ---------------- */
+  /* 存不了就得说清楚：嵌在别的站点里时（魔搭创空间就是 iframe），
+     浏览器开启"拦截第三方 Cookie"会让 localStorage 直接抛错，
+     这时如果还宣称"进度已保存"，用户下次进来看到从第一题开始，只会以为程序坏了。 */
+  var STORAGE_OK = (function () {
+    try {
+      var k = '__talent_probe__';
+      localStorage.setItem(k, '1');
+      localStorage.removeItem(k);
+      return true;
+    } catch (e) { return false; }
+  })();
+
   function save() {
+    if (!STORAGE_OK) return false;
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({ at: state.at, a: state.a, b: state.b, c: state.c, ts: Date.now() }));
-    } catch (e) { /* 隐私模式下静默失败 */ }
+      return true;
+    } catch (e) { STORAGE_OK = false; return false; }
   }
   function load() {
+    if (!STORAGE_OK) return null;
     try {
       var raw = localStorage.getItem(STORE_KEY);
       if (!raw) return null;
       var p = JSON.parse(raw);
       if (!p || !Array.isArray(p.a) || p.a.length !== B.partA.length) return null;
+      /* 补齐可能缺失的段落（旧存档），避免后面 filter 报错 */
+      ['b', 'c'].forEach(function (k) {
+        var len = B['part' + k.toUpperCase()].length;
+        if (!Array.isArray(p[k]) || p[k].length !== len) p[k] = new Array(len).fill(null);
+      });
       return p;
     } catch (e) { return null; }
   }
@@ -94,6 +127,18 @@
     $('railFill').style.width = pct + '%';
     $('railBar').setAttribute('aria-valuenow', pct);
 
+    /* 续做提示只在"刚进来这一步"出现一次：
+       如果每题都挂一遍，用户答第一题时看到"已答 37 / 62"会以为进度串了。 */
+    /* 落在段落说明页时先留着标记，等真正到题上再提示并清掉 */
+    var showResumeHint = resumeHintPending && step.kind === 'item';
+    if (step.kind === 'item') resumeHintPending = false;
+    var resumeHintText = '';
+    if (showResumeHint) {
+      resumeHintText = done >= TOTAL_ITEMS
+        ? '已答完 ' + TOTAL_ITEMS + ' 题，之前的选择已保留。确认无误就点"生成报告"。'
+        : '已答 ' + done + ' / ' + TOTAL_ITEMS + ' 题，之前的选择已保留。';
+    }
+
     host.innerHTML = '';
 
     if (step.kind === 'intro') {
@@ -119,12 +164,8 @@
     wrap.appendChild(el('div', 'q-no', '第 ' + (step.part === 'A' ? '1' : step.part === 'B' ? '2' : '3') +
       ' 部分 · 第 ' + numInPart + ' / ' + numInPartTotal + ' 题'));
 
-    // 续做时明确告知已答进度，避免"进度跳了但像是新题"的困惑
-    if (answeredCount() > 0) {
-      wrap.appendChild(el('p', 'q-hint', '已答 ' + answeredCount() + ' / ' + TOTAL_ITEMS +
-        ' 题，之前的选择已保留。'));
-    }
     wrap.appendChild(el('p', 'q-text', step.data.text));
+    if (resumeHintText) wrap.appendChild(el('p', 'q-hint', resumeHintText));
 
     if (step.part === 'A') {
       wrap.appendChild(el('p', 'q-hint', B.meta.freqHint + '（' + B.meta.freqScale.join(' · ') + '）'));
@@ -256,34 +297,41 @@
   }
 
   /* ---------------- 存档续做 ---------------- */
+  function setStartLabels(text) {
+    var top = $('btnStart');
+    top.textContent = text;
+    top.appendChild(arrowSVG());
+    var bottom = $('btnStart2');
+    if (bottom) bottom.textContent = text;
+  }
+
   function renderResumeNote() {
     var saved = load();
     var note = $('resumeNote');
-    var done = 0;
-    if (saved) {
-      done = saved.a.filter(function (v) { return v !== null; }).length +
-        saved.b.filter(function (v) { return v !== null; }).length +
-        saved.c.filter(function (v) { return v !== null; }).length;
+    var done = progressOf(saved);
+    var reset = $('btnRestart');
+    var warn = $('saveWarn');
+    if (warn) {
+      warn.hidden = STORAGE_OK;
+      warn.textContent = STORAGE_OK ? '' :
+        '这台设备的浏览器禁止了本页保存数据（常见于开启了"拦截第三方 Cookie"的内嵌预览）。' +
+        '可以正常做完并看到报告，但中途关掉页面不会保留进度——建议一次做完，或用页面右上角在新窗口打开。';
     }
-    var btn = $('btnStart');
-    if (saved && done > 0 && done < TOTAL_ITEMS) {
+
+    /* 只要有存档就一律给"续做"，包括已答满 62 题但还没生成报告的情况：
+       那种状态以前会被当成"没进度"，两个入口都退回第 1 题，等于把 62 题答案丢掉。 */
+    if (saved && done > 0) {
       note.hidden = false;
-      note.textContent = '上次答到第 ' + (done + 1) + ' 题（共 ' + TOTAL_ITEMS +
-        ' 题），进度已存在本机。两个入口都会从这里继续；想从头答，请点下方"重新开始"。';
-      btn.textContent = '继续上次';
-      btn.appendChild(arrowSVG());
-      var bottom = $('btnStart2');
-      if (bottom) bottom.textContent = '继续上次';
-      var reset = $('btnRestart');
+      note.textContent = (done >= TOTAL_ITEMS
+        ? '已答完 ' + TOTAL_ITEMS + ' 题，进度已存在本机。两个入口都会带你回到最后一题生成报告；想从头答，请点下方"重新开始"。'
+        : '上次答到第 ' + (done + 1) + ' 题（共 ' + TOTAL_ITEMS +
+          ' 题），进度已存在本机。两个入口都会从这里继续；想从头答，请点下方"重新开始"。');
+      setStartLabels('继续上次');
       if (reset) reset.hidden = false;
     } else {
       note.hidden = true;
-      btn.textContent = '开始测评';
-      btn.appendChild(arrowSVG());
-      var bottom2 = $('btnStart2');
-      if (bottom2) bottom2.textContent = '开始测评';
-      var reset2 = $('btnRestart');
-      if (reset2) reset2.hidden = true;
+      setStartLabels('开始测评');
+      if (reset) reset.hidden = true;
     }
   }
 
@@ -295,14 +343,19 @@
 
   function start() {
     var saved = load();
-    if (saved) {
-      var done = saved.a.filter(function (v) { return v !== null; }).length +
-        saved.b.filter(function (v) { return v !== null; }).length +
-        saved.c.filter(function (v) { return v !== null; }).length;
-      if (done > 0 && done < TOTAL_ITEMS) {
-        state.at = saved.at;
-        state.a = saved.a; state.b = saved.b; state.c = saved.c;
+    var done = progressOf(saved);
+    if (done > 0) {
+      state.a = saved.a; state.b = saved.b; state.c = saved.c;
+      if (done >= TOTAL_ITEMS) {
+        /* 62 题都答完却没生成报告：回到最后一题，让"生成报告"按钮就在眼前。
+           以前这里会因为 done < TOTAL_ITEMS 不成立而整段跳过，代价是 62 个答案全丢。 */
+        var last = steps.length - 1;
+        while (last > 0 && steps[last].kind !== 'item') last--;
+        state.at = last;
+      } else {
+        state.at = Math.min(Math.max(saved.at | 0, 0), steps.length - 1);
       }
+      resumeHintPending = true;
     }
     show('screen-quiz');
     renderStep();
@@ -315,7 +368,10 @@
   var restartBtn = $('btnRestart');
   if (restartBtn) {
     restartBtn.addEventListener('click', function () {
-      if (!confirm('重新开始会清空已答的 ' + answeredCount() + ' 题，从第一题重新作答。确定吗？')) return;
+      /* 封面上的内存态是空的，已答题数只能从存档里数，否则会提示"清空 0 题" */
+      var saved = load();
+      var done = Math.max(progressOf(saved), answeredCount());
+      if (!confirm('重新开始会清空已答的 ' + done + ' 题，从第一题重新作答。确定吗？')) return;
       clearSave();
       state = {
         at: 0,

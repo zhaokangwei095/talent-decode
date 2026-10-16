@@ -127,6 +127,10 @@ button { font: inherit; color: inherit; }
 
 .screen[hidden] { display: none !important; }
 
+/* 兜底：本文件给按钮设了 display: inline-flex，会盖掉浏览器默认的 [hidden]{display:none}，
+   于是 hidden 的按钮（如"重新开始"）照样显示。统一在这里压掉，别再逐个组件补。 */
+[hidden] { display: none !important; }
+
 /* 页眉：档案抬头 */
 .masthead {
   display: flex;
@@ -778,6 +782,20 @@ button { font: inherit; color: inherit; }
   color: var(--ink-2);
 }
 .disclaimer b { color: var(--ink); }
+
+/* 存档不可用提示：跟在"开始测评"下方，用朱砂表示"这是需要你看一眼的限制"。
+   之所以要显式提示，是因为 iframe 预览里 localStorage 可能直接抛错，
+   不说明的话，用户只会把"进度凭空消失"当成程序坏了。 */
+.save-warn {
+  margin-top: var(--s3);
+  padding: .7rem .9rem;
+  max-width: 32em;
+  background: var(--seal-soft);
+  border-left: 3px solid var(--seal);
+  font-size: .8125rem;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
 .colophon {
   margin-top: var(--s5);
   padding-top: var(--s3);
