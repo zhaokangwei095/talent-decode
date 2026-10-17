@@ -37,14 +37,22 @@ const STUDIO = process.argv[2] || 'https://www.modelscope.cn/studios/zkw095/tale
   await new Promise((r) => setTimeout(r, 300));
   await frame.evaluate(() => document.querySelector('.interlude .act').click());
   await new Promise((r) => setTimeout(r, 400));
-  await page.keyboard.press('3');
-  await new Promise((r) => setTimeout(r, 500));
+  /* 自动跳题发生在 260ms 后，必须及时采样选中态 */
+  await frame.evaluate(() => {
+    document.querySelectorAll('.opt')[2].click();
+  });
+  await new Promise((r) => setTimeout(r, 100));
 
   const sel = await frame.evaluate(() => {
     const o = document.querySelector('.opt[aria-pressed="true"]');
     if (!o) return null;
     const cs = getComputedStyle(o);
-    return { label: o.textContent.trim(), bg: cs.backgroundColor, border: cs.borderLeftColor };
+    return {
+      label: o.textContent.trim(),
+      bg: cs.backgroundColor,
+      border: cs.borderTopColor,
+      mark: getComputedStyle(o.querySelector('.mark')).backgroundColor
+    };
   });
   console.log('SELECTED:', JSON.stringify(sel));
   await page.screenshot({ path: 'shots/ms-fix-selected.png' });
