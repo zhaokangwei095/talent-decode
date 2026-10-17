@@ -34,10 +34,11 @@ tools/subset-font.py        按实际用字裁剪标题字体（改文案后重�
 tools/serve.js              本地静态服务
 tools/shoot.js              无头 Chrome 走完全程 + 截图
 tools/audit.js              响应式 / 无障碍 / 对比度审计
+tools/shoot-redesign.js     苹果风新版封面 / 答题 / 报告截图
 tools/glyph-visual.js       字体缺字（豆腐块）目视检查
 tools/render-cases.js       报告边界回归（全高/全低/平局/分化）
 tools/check-refs.js         本地资源引用死链检查
-tools/repro-both-entries.js 封面两个入口行为一致性回归
+tools/repro-both-entries.js 封面入口、整页刷新与答满续做回归
 tools/repro-quit-last.js    答满未生成报告后退出/重开的续做回归
 tools/repro-restart.js      "重新开始"清空与文案回归
 tools/repro-no-storage.js   存储被禁时的降级表现回归
@@ -87,6 +88,7 @@ console.log(E.score({a,b,c}).type.name)"
 
 # 浏览器端：走完全程 + 截图（需先启动 serve.js）
 node tools/shoot.js
+node tools/shoot-redesign.js
 
 # 响应式 / 无障碍 / 对比度审计
 node tools/audit.js
@@ -97,7 +99,7 @@ node tools/render-cases.js
 # 字体缺字目视检查
 node tools/glyph-visual.js
 
-# 答题进度回归：两个入口一致性 / 答满未生成报告 / 重新开始 / 存储被禁
+# 答题进度回归：入口与刷新 / 答满未生成报告 / 重新开始 / 存储被禁
 node tools/repro-both-entries.js
 node tools/repro-quit-last.js
 node tools/repro-restart.js
@@ -105,7 +107,7 @@ node tools/repro-no-storage.js
 node tools/check-hidden.js
 ```
 
-`tools/shoot.js` 与 `tools/audit.js` 依赖 `puppeteer-core` 和本机 Chrome，仅用于开发验收；页面本身不依赖任何 npm 包。
+`tools/shoot.js`、`tools/shoot-redesign.js` 与 `tools/audit.js` 依赖 `puppeteer-core` 和本机 Chrome，仅用于开发验收；页面本身不依赖任何 npm 包。
 
 ## 无障碍
 

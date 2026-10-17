@@ -49,13 +49,13 @@ const STUDIO = process.argv[2] || 'https://www.modelscope.cn/studios/zkw095/tale
   console.log('SELECTED:', JSON.stringify(sel));
   await page.screenshot({ path: 'shots/ms-fix-selected.png' });
 
-  // 退出，检查封面两个入口是否同步（跨域 iframe 必须用 frame 对象，不能读 contentDocument）
+  // 退出，检查封面唯一入口的状态（跨域 iframe 必须用 frame 对象，不能读 contentDocument）
   await frame.evaluate(() => document.getElementById('btnQuit').click());
   await new Promise((r) => setTimeout(r, 2000));
   const coverFrame = page.frames().find((f) => f.url() === src);
   const cover = coverFrame ? await coverFrame.evaluate(() => ({
     top: document.getElementById('btnStart').textContent.trim(),
-    bottom: document.getElementById('btnStart2').textContent.trim(),
+    bottom: '(single entry)',
     restartHidden: document.getElementById('btnRestart').hidden,
     note: document.getElementById('resumeNote').textContent
   })) : null;

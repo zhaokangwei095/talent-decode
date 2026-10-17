@@ -26,18 +26,13 @@
   /* ---------------- 封面：集群目录 ---------------- */
   function renderIndex(host) {
     var ol = el('ol', 'index-list');
-    B.clusterOrder.forEach(function (key, i) {
+    B.clusterOrder.forEach(function (key) {
       var c = B.clusters[key];
-      var members = B.dims.filter(function (d) { return d.cluster === key; });
       var li = el('li', 'index-row');
       li.setAttribute('data-cluster', key);
-      li.appendChild(el('div', 'no', '0' + (i + 1)));
       var body = el('div');
       body.appendChild(el('h3', null, c.name));
-      var lines = el('div', 'lines');
-      members.forEach(function (d) { lines.appendChild(el('span', null, d.name)); });
-      body.appendChild(lines);
-      body.appendChild(el('div', 'tag', c.desc));
+      body.appendChild(el('p', 'cluster-desc', c.desc));
       li.appendChild(body);
       ol.appendChild(li);
     });
@@ -99,6 +94,7 @@
   /* ---------------- 报告：详情区块 ---------------- */
   function dimBlock(d, rank) {
     var b = E.band(d.pct);
+    var keyTraits = d.strengths.slice(0, 2);
     var html = '<article class="dim-block">' +
       '<div class="db-head">' +
         '<span class="glyph" aria-hidden="true">' + esc(d.glyph) + '</span>' +
@@ -110,16 +106,24 @@
       '</div>' +
       '<p class="slogan">' + esc(d.slogan) + '</p>' +
       '<div class="body">' +
-        '<span class="lbl">表现</span>' +
-        '<p>' + esc(d.desc) + '。' + esc(d.grow) + '。</p>' +
         '<span class="lbl">常见表现</span>' +
-        '<ul class="ticks">' + d.strengths.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
-        '<span class="lbl">容易踩的坑</span>' +
-        '<ul class="crosses">' + d.traps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
-        '<span class="lbl">能发挥它的场景</span>' +
-        '<div class="chips">' + d.scenes.map(function (s) { return '<span class="chip">' + esc(s) + '</span>'; }).join('') + '</div>' +
-        '<span class="lbl">可以马上试的做法</span>' +
-        '<ul class="ticks">' + d.advice.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
+        '<ul class="ticks">' + keyTraits.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
+        '<div class="more" id="more-' + rank + '" data-open="false">' +
+          '<span class="lbl">表现</span>' +
+          '<p>' + esc(d.desc) + '。</p>' +
+          '<span class="lbl">容易踩的坑</span>' +
+          '<ul class="crosses">' + d.traps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
+          (d.strengths.length > keyTraits.length
+            ? '<span class="lbl">还有一个信号</span><ul class="ticks">' +
+              d.strengths.slice(keyTraits.length).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>'
+            : '') +
+          '<span class="lbl">能发挥它的场景</span>' +
+          '<div class="chips">' + d.scenes.map(function (s) { return '<span class="chip">' + esc(s) + '</span>'; }).join('') + '</div>' +
+          '<span class="lbl">可以马上试的做法</span>' +
+          '<ul class="ticks">' + d.advice.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
+          '<p class="more-grow"><b>可以怎么用：</b>' + esc(d.grow) + '。</p>' +
+        '</div>' +
+        '<button type="button" class="more-btn" aria-expanded="false" aria-controls="more-' + rank + '">展开细节</button>' +
       '</div></article>';
     return html;
   }
@@ -142,6 +146,18 @@
         '<h2 class="sec-title">' + title + '</h2>' +
         (note ? '<span class="sec-note">' + note + '</span>' : '') + '</div>';
     }
+  /* 可折叠章节：默认只露标题，点开才看细节。用于把长报告压成一屏可读。 */
+  function secFold(title, note, inner, open) {
+    var id = 'fold-' + seq;
+    var head = secNo(title, note).replace('</div>',
+      '<button type="button" class="fold-toggle" aria-expanded="' + (open ? 'true' : 'false') +
+        '" aria-controls="' + id + '"><span class="fold-label">' + (open ? '收起' : '展开') +
+        '</span><span class="fold-chev" aria-hidden="true"></span></button></div>');
+    return '<section class="sec sec--fold' + (open ? ' is-open' : '') + '">' +
+      head +
+      '<div class="fold-body" id="' + id + '"><div class="fold-inner">' + inner + '</div></div>' +
+      '</section>';
+  }
 
     /* 抬头 */
     h.push('<header class="report-cover">');
@@ -160,9 +176,8 @@
     h.push('<div class="cell risk"><h4>要留神的地方</h4><p>' + esc(t.warn) + '</p></div>');
     h.push('</div>');
     if (result.isBlend) {
-      h.push('<p class="lede" style="margin-top:1rem;font-size:.875rem">你的两个大方向分数接近（相差 ' +
-        result.clusterGap + ' 分），说明你不属于单一类型。这类人被归类时最容易被贴错标签，' +
-        '下面这份报告请读细节，不要只记住类型名。</p>');
+      h.push('<p class="note-inline">两个大方向只差 ' + result.clusterGap +
+        ' 分，不必只记类型名，请看下面的细节。</p>');
     }
     h.push('</section>');
 
@@ -170,8 +185,7 @@
     h.push('<section class="sec">' + secNo('天赋分布图', '12 项 · 满分 100'));
     /* 雷达用固定轴序（见 engine RADAR_ORDER），便于横向比较 */
     h.push('<div class="chart-wrap">' + radarSVG(result.dimsFixed) + '</div>');
-    h.push('<p class="lede" style="font-size:.75rem;color:var(--ink-3);margin-top:.5rem;text-align:center">' +
-      '按四大方向顺序排列，顺时针：表达联结 → 构想创造 → 分析建构 → 体验感知</p>');
+    h.push('<p class="chart-note">顺时针：表达联结 → 构想创造 → 分析建构 → 体验感知</p>');
     var cb = '<div class="cluster-bar">';
     B.clusterOrder.slice().sort(function (x, y) { return result.clusters[y] - result.clusters[x]; })
       .forEach(function (key) {
@@ -186,56 +200,57 @@
 
     /* §03 强弱排序 */
     h.push('<section class="sec">' + secNo('十二项排序', '按本轮作答'));
-    h.push('<ol class="ranks">');
+    h.push('<ol class="ranks-list">');
     result.dims.forEach(function (d, i) {
-      h.push('<li class="' + (i < 3 ? 'is-top' : '') + '">' +
-        '<span class="rk">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<span class="nm">' + esc(d.name) + '<small>' + esc(d.desc) + '</small></span>' +
-        '<span class="sc">' + Math.round(d.pct) + ' · ' + esc(E.band(d.pct).text) + '</span>' +
+      h.push('<li class="rank-row' + (i < 3 ? ' is-top' : '') + '">' +
+        '<span class="rank-no">' + (i + 1) + '</span>' +
+        '<span class="rank-name">' + esc(d.name) + '</span>' +
+        '<span class="rank-track"><i style="width:' + Math.round(d.pct) + '%"></i></span>' +
+        '<span class="rank-score">' + Math.round(d.pct) + '</span>' +
         '</li>');
     });
     h.push('</ol></section>');
 
-    /* §04 前四项详解 */
-    h.push('<section class="sec">' + secNo('优势详解', '得分最高的四项'));
-    top.forEach(function (d, i) { h.push(dimBlock(d, i + 1)); });
-    h.push('<p class="lede" style="margin-top:1.25rem;font-size:.875rem">' +
-      '剩下 ' + (result.dims.length - 4) + ' 项没有展开。它们不是缺点，只是这一轮里相对不突出——' +
-      '在关系、学习、成长这几件事上，它们往往比你的第一名更有用。完整数据见上方排序表。</p>');
-    h.push('</section>');
+    /* §04 前四项详解（折叠） */
+    var dimsInner = top.map(function (d, i) { return dimBlock(d, i + 1); }).join('');
+    dimsInner += '<p class="note-inline">其余 ' + (result.dims.length - 4) +
+      ' 项不是缺点，只是这一轮相对不突出，完整数据见上方排序。</p>';
+    h.push(secFold('优势详解', '得分最高的四项', dimsInner, false));
 
     /* 成长空间：取分数最低的三项，给"怎么绕过"而不是"怎么补短板"。
        若最低分也不低，说明这轮没有明显弱项，改说相对次序，不要硬贴"弱"的标签。 */
     var weak = result.dims.slice(-3).slice().reverse();
     var noWeak = weak[0].pct >= 70;
-    h.push('<section class="sec">' + secNo(
-      noWeak ? '相对靠后的三项' : '暂时不突出的三项',
-      noWeak ? '这轮没有明显短板' : '不必硬补，知道怎么绕'));
-    h.push('<p class="lede">' + (noWeak
-      ? '你的十二项分数都在中上区间，没有明显拖后腿的一项。这种情况下，继续找"哪里不行"意义不大，' +
-        '更值得做的是：从下面这三项里挑一项，把它和你的最强项组合起来用，形成别人不容易复制的复合优势。'
-      : '这三项不是缺陷。人在弱项上花同样的时间，回报通常远低于把强项再拉高一档。' +
-        '更划算的做法是：知道它会拖你后腿，提前配工具、找搭子或换路径。') + '</p>');
-    h.push('<ul class="avoid" style="margin-top:1rem">');
+    var weakInner = '<p class="lede">' + (noWeak
+      ? '没有明显短板。挑一项和你的强项组合使用，比继续补短更划算。'
+      : '不必硬补。提前配工具、找搭子或换路径，比死磕弱项回报更高。') + '</p>';
+    weakInner += '<ul class="avoid" style="margin-top:1rem">';
     weak.forEach(function (d) {
-      h.push('<li><div><b>' + esc(d.name) + ' · ' + Math.round(d.pct) + ' 分</b>' +
+      weakInner += '<li><div><b>' + esc(d.name) + ' · ' + Math.round(d.pct) + ' 分</b>' +
         '<span>' + esc(d.grow) + '</span></div>' +
-        '<span class="lv">' + esc(noWeak ? '仍有空间' : E.band(d.pct).text) + '</span></li>');
+        '<span class="lv">' + esc(noWeak ? '仍有空间' : E.band(d.pct).text) + '</span></li>';
     });
-    h.push('</ul></section>');
+    weakInner += '</ul>';
+    weakInner += '<p class="note-inline">' + (noWeak
+      ? '没有明显短板，挑一项和强项组合使用。'
+      : '知道它会拖后腿就好：提前配工具、找搭子，或换一条路径。') + '</p>';
+    h.push(secFold(
+      noWeak ? '相对靠后的三项' : '暂时不突出的三项',
+      noWeak ? '这轮没有明显短板' : '不必硬补，知道怎么绕',
+      weakInner, false));
 
-    /* 工作模式 */
-    h.push('<section class="sec">' + secNo('你的工作模式', '来自取舍题，不是自评'));
-    h.push('<div class="duo">');
+    /* 工作模式（折叠） */
+    var modeInner = '<div class="duo">';
     result.axes.forEach(function (ax) {
-      h.push('<div class="cell"><h4>' + esc(ax.name) + '<span style="font-weight:400;color:var(--ink-3);font-size:.75rem"> · ' +
-        esc(ax.left) + ' ⟷ ' + esc(ax.right) + '</span></h4><p>' + esc(ax.text) + '</p></div>');
+      modeInner += '<div class="cell"><h4>' + esc(ax.name) + '<span style="font-weight:400;color:var(--ink-3);font-size:.75rem"> · ' +
+        esc(ax.left) + ' ⟷ ' + esc(ax.right) + '</span></h4><p>' + esc(ax.text) + '</p></div>';
     });
-    h.push('</div></section>');
+    modeInner += '</div>';
+    h.push(secFold('你的工作模式', '来自取舍题，不是自评', modeInner, false));
 
     /* §06 兴趣 */
     h.push('<section class="sec">' + secNo('你愿意做的事', '兴趣 ≠ 能力'));
-    h.push('<p class="lede">能力决定你做得动什么，兴趣决定你能撑多久。两组分数叠在一起看，才是完整的线索。</p>');
+    h.push('<p class="lede">能力决定做得动什么，兴趣决定能撑多久。</p>');
     var ci = '<div class="cluster-bar">';
     result.interests.forEach(function (f) {
       ci += '<div class="cb-row"><span class="lbl">' + esc(f.name) + '</span>' +
@@ -258,56 +273,46 @@
           '<p class="start"><b>第一步：</b>' + esc(c.start) + '</p>' +
         '</div></article>');
     });
-    h.push('<p class="lede" style="margin-top:1rem;font-size:.875rem">' +
-      '星级看的是"你的能力结构和它的要求有多重合"，不代表行业前景、薪资或门槛。' +
-      '同样重要的是：一份工作值不值得去，还取决于你有多少机会和多少人竞争。</p>');
+    h.push('<p class="note-inline">星级只看能力结构与岗位要求的重合度，不代表前景或薪资。</p>');
     h.push('</section>');
 
     /* §08 避坑 */
     if (result.avoid.length) {
-      h.push('<section class="sec">' + secNo('建议谨慎的方向', '缺口最大，非绝对禁止'));
-      h.push('<ul class="avoid">');
+      var avoidInner = '<ul class="avoid">';
       result.avoid.forEach(function (a) {
-        h.push('<li><div><b>' + esc(a.name) + '</b><span>' + esc(a.note) + '</span></div>' +
-          '<span class="lv">' + esc(a.level) + '</span></li>');
+        avoidInner += '<li><div><b>' + esc(a.name) + '</b><span>' + esc(a.note) + '</span></div>' +
+          '<span class="lv">' + esc(a.level) + '</span></li>';
       });
-      h.push('</ul>');
-      h.push('<p class="lede" style="margin-top:.75rem;font-size:.8125rem">' +
-        '这份清单的意思是"你现在进去会更吃力"，不是"你永远做不了"。' +
-        '如果某个方向你真的想做，把它当成需要提前补课的科目，而不是禁区。</p>');
-      h.push('</section>');
+      avoidInner += '</ul>';
+      avoidInner += '<p class="note-inline">意思是"现在进去会更吃力"，不是"你永远做不了"。</p>';
+      h.push(secFold('建议谨慎的方向', result.avoid.length + ' 个方向', avoidInner, false));
     }
 
     /* §09 验证计划 */
-    h.push('<section class="sec">' + secNo('7 天验证计划', '别只收藏，去做'));
-    h.push('<ul class="plan">');
+    var planInner = '<ul class="plan">';
     plan.forEach(function (p) {
-      h.push('<li><span class="day">' + esc(p.day) + '</span><span class="what">' + esc(p.what) + '</span></li>');
+      planInner += '<li><span class="day">' + esc(p.day) + '</span><span class="what">' + esc(p.what) + '</span></li>';
     });
-    h.push('</ul>');
-    h.push('<p class="lede" style="margin-top:1rem">测试只能告诉你"可能"在哪里。' +
-      '真正让你确定的，是这 7 天里做出来的东西和见到的人。</p>');
-    h.push('</section>');
+    planInner += '</ul>';
+    planInner += '<p class="note-inline">测试只给出"可能"，让你确定的是这 7 天做出来的东西。</p>';
+    h.push(secFold('7 天验证计划', '别只收藏，去做', planInner, false));
 
     /* 一致性提示 + 免责 */
     if (rel.flat || rel.tight) {
-      h.push('<div class="disclaimer"><b>一点提醒：</b>你这一轮的答案集中在 ' + rel.distinct +
-        ' 个选项上。如果当时是"凭感觉快速选完"，分数差距会被压缩，排序的参考价值会下降。' +
-        '想看得更清楚，可以隔一天放慢速度再测一次。</div>');
+      h.push('<div class="disclaimer"><b>提醒：</b>本轮答案集中在 ' + rel.distinct +
+        ' 个选项上，分数差距被压缩，排序参考价值有限。可以隔一天再测一次。</div>');
     }
-    h.push('<div class="disclaimer"><b>关于这份报告：</b>它基于' + esc(B.meta.basis) +
-      '的框架设计，用来帮你整理线索，不是心理诊断，也不预测你的上限。' +
-      '任何职业选择都建议结合真实经历、市场机会和你的生活条件来判断。' +
-      '本次测评全程在本地完成，你的答案没有离开这台设备。</div>');
+    h.push('<div class="disclaimer"><b>关于这份报告：</b>基于' + esc(B.meta.basis) +
+      '，用来整理线索，不是心理诊断。全程本地计算，答案没有离开这台设备。</div>');
 
     h.push('<div class="colophon">' +
       '<span>' + esc(B.meta.title) + ' · ' + esc(B.meta.edition) + '</span>' +
       '<span>生成于 ' + formatDate(result.generatedAt) + '</span>' +
       '</div>');
 
-    h.push('<div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.5rem">' +
-      '<button class="act act--ghost" id="btnAgain" style="margin-top:0">重新测一次</button>' +
-      '<button class="act act--ghost" id="btnPrint" style="margin-top:0">打印 / 存为 PDF</button>' +
+    h.push('<div class="report-actions">' +
+      '<button class="act" id="btnAgain">重新测一次</button>' +
+      '<button class="act act--ghost" id="btnPrint">打印 / 存为 PDF</button>' +
       '</div>');
 
     host.innerHTML = h.join('');

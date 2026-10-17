@@ -1,4 +1,5 @@
-/* 断言：封面两个入口（顶部 hero 按钮 / §03 底部按钮）在任意进度下行为完全一致 */
+/* 断言：封面的续做入口在任意进度下都从同一个位置继续。
+   新版封面只保留一个入口，这里改为校验"顶部入口 + 整页刷新"两条路径一致。 */
 const puppeteer = require('puppeteer-core');
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -16,16 +17,22 @@ const read = (page) => page.evaluate(() => ({
   })(),
   cover: {
     top: document.getElementById('btnStart').textContent.trim(),
-    bottom: document.getElementById('btnStart2').textContent.trim(),
+    bottom: (document.getElementById('btnStart2') || {}).textContent || '(none)',
     restartHidden: document.getElementById('btnRestart').hidden,
     note: document.getElementById('resumeNote').hidden ? '(hidden)' : document.getElementById('resumeNote').textContent
   }
 }));
 
-/* 答题：A/C 段点第 3 个选项，B 段点左侧再挑程度 */
+/* 答题：A/C 段点第 3 个选项；B 段先选左侧，再选中间程度。
+   B 段是两步交互，必须一次完成，否则下一题按钮会一直不可用。 */
 const answerOne = (page) => page.evaluate(() => {
   const side = document.querySelector('.side');
-  if (side) { side.click(); return 'side'; }
+  if (side) {
+    side.click();
+    const between = document.querySelectorAll('.between button');
+    if (between[2]) { between[2].click(); return 'side+between'; }
+    return 'side';
+  }
   const opts = document.querySelectorAll('.opt');
   if (opts.length) { opts[2].click(); return 'opt'; }
   return 'none';
@@ -57,9 +64,7 @@ const answerOne = (page) => page.evaluate(() => {
   await new Promise((r) => setTimeout(r, 250));
   for (let i = 0; i < 5; i++) {
     await answerOne(page);
-    await new Promise((r) => setTimeout(r, 120));
-    await page.click('#btnNext');
-    await new Promise((r) => setTimeout(r, 120));
+    await new Promise((r) => setTimeout(r, 480));
   }
   await page.click('#btnQuit');
   await new Promise((r) => setTimeout(r, 300));
@@ -74,14 +79,16 @@ const answerOne = (page) => page.evaluate(() => {
   await page.click('#btnQuit');
   await new Promise((r) => setTimeout(r, 300));
 
-  /* 入口二：底部 §03 */
-  await page.click('#btnStart2');
+  /* 入口二：整页刷新后同一入口（等价于用户下次打开链接） */
+  await page.reload({ waitUntil: 'networkidle2' });
+  await new Promise((r) => setTimeout(r, 400));
+  await page.click('#btnStart');
   await new Promise((r) => setTimeout(r, 350));
-  const viaBottom = await read(page);
-  console.log('底部入口 →', JSON.stringify(viaBottom));
-  check('两个入口落点一致', viaTop, viaBottom);
+  const viaReload = await read(page);
+  console.log('刷新后入口 →', JSON.stringify(viaReload));
+  check('刷新前后落点一致', viaTop, viaReload);
 
-  /* --- 第 2 轮：整页刷新后再比一次（模拟下次打开） --- */
+  /* --- 第 2 轮：再刷新一次，确认进度不丢 --- */
   await page.reload({ waitUntil: 'networkidle2' });
   await new Promise((r) => setTimeout(r, 400));
   await page.click('#btnStart');
@@ -89,13 +96,11 @@ const answerOne = (page) => page.evaluate(() => {
   const afterReloadTop = await read(page);
   await page.click('#btnQuit');
   await new Promise((r) => setTimeout(r, 300));
-  await page.click('#btnStart2');
-  await new Promise((r) => setTimeout(r, 350));
-  const afterReloadBottom = await read(page);
-  check('刷新后两个入口落点一致', afterReloadTop, afterReloadBottom);
   check('刷新前后进度不丢', viaTop, afterReloadTop);
 
   /* --- 第 3 轮：答满 62 题但不生成报告 --- */
+  await page.click('#btnStart');
+  await new Promise((r) => setTimeout(r, 350));
   for (let guard = 0; guard < 200; guard++) {
     const st = await page.evaluate(() => {
       if (!document.getElementById('screen-quiz').hidden) {
@@ -110,39 +115,46 @@ const answerOne = (page) => page.evaluate(() => {
       await new Promise((r) => setTimeout(r, 120));
       continue;
     }
-    if (st === '生成报告') {
-      /* 走到最后一题时先作答，否则"生成报告"按钮是 disabled 的 */
+    if (st === '查看报告') {
+      /* 最后一题只作答，不生成报告，留给下面验证退出后能续做 */
       await answerOne(page);
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 180));
       break;
     }
     await answerOne(page);
-    await new Promise((r) => setTimeout(r, 110));
-    await page.click('#btnNext');
-    await new Promise((r) => setTimeout(r, 110));
+    /* A/C 段点选后会延迟 260ms 自动前进；B 段是两步选择，不会自动走。
+       这里在自动计时器触发前显式点"下一题"，两种情况都能稳定推进。 */
+    await new Promise((r) => setTimeout(r, 60));
+    await page.evaluate(() => {
+      const n = document.getElementById('btnNext');
+      if (n && !n.disabled) n.click();
+    });
+    await new Promise((r) => setTimeout(r, 360));
   }
   const atEnd = await read(page);
   console.log('答满 62 题:', JSON.stringify({ counter: atEnd.counter, next: atEnd.next, selected: atEnd.selected }));
-  check('最后一题可生成报告', atEnd.next, '生成报告');
+  check('最后一题可生成报告', atEnd.next, '查看报告');
 
   await page.click('#btnQuit');
   await new Promise((r) => setTimeout(r, 350));
   const endCover = (await read(page)).cover;
   console.log('答满后封面:', JSON.stringify(endCover));
-  check('答满后封面给续做', { top: endCover.top, bottom: endCover.bottom }, { top: '继续上次', bottom: '继续上次' });
+  check('答满后封面给续做', { top: endCover.top, bottom: endCover.bottom }, { top: '继续上次', bottom: '(none)' });
 
   await page.click('#btnStart');
   await new Promise((r) => setTimeout(r, 350));
   const endTop = await read(page);
   console.log('答满后顶部入口:', JSON.stringify({ counter: endTop.counter, next: endTop.next, selected: endTop.selected }));
-  check('答满后顶部入口回到最后一题', { qno: endTop.qno, next: endTop.next }, { qno: endTop.qno, next: '生成报告' });
+  check('答满后顶部入口回到最后一题', { qno: endTop.qno, next: endTop.next }, { qno: endTop.qno, next: '查看报告' });
 
   await page.click('#btnQuit');
   await new Promise((r) => setTimeout(r, 300));
-  await page.click('#btnStart2');
+  await page.reload({ waitUntil: 'networkidle2' });
+  await new Promise((r) => setTimeout(r, 400));
+  await page.click('#btnStart');
   await new Promise((r) => setTimeout(r, 350));
   const endBottom = await read(page);
-  check('答满后两个入口落点一致', endTop, endBottom);
+  check('答满后刷新仍落在最后一题', endTop, endBottom);
 
   /* --- 第 4 轮：走完整个流程能拿到报告 --- */
   await page.click('#btnNext');

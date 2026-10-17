@@ -19,82 +19,63 @@
 
   <!-- ==================== 封面 ==================== -->
   <section id="screen-cover" class="screen cover" aria-labelledby="coverTitle">
-    <p class="kicker">Talent Dossier / 职业倾向深度版</p>
+    <p class="kicker">TALENT DECODE</p>
     <h1 id="coverTitle">发现你的<br><em>天赋组合</em></h1>
-    <p class="sub">多数测评只问你"你觉得自己擅长什么"。这一份换了问法：先看你实际怎么做事的，再问你愿意把时间花在哪，最后才做判断。</p>
-
-    <div class="facts">
-      <div><b>62</b><span>道题 · 三层提问</span></div>
-      <div><b>12</b><span>项天赋维度</span></div>
-      <div><b>8-10</b><span>分钟</span></div>
-      <div><b>0</b><span>次数据上传</span></div>
-    </div>
+    <p class="sub">62 题，8 分钟。<br>看你怎么做事，而不是你以为自己擅长什么。</p>
 
     <button class="act" id="btnStart">
       开始测评
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-        <path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="square"/>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M5 12h13M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
-    <p id="resumeNote" hidden style="margin-top:.75rem;font-size:.8125rem;color:var(--ink-3)"></p>
+    <p id="resumeNote" hidden></p>
     <p id="saveWarn" class="save-warn" hidden></p>
-    <button class="act act--ghost" id="btnRestart" hidden
-            style="margin-top:.75rem;padding:.55rem 1.1rem;min-height:44px;font-size:.8125rem;letter-spacing:.08em">
-      重新开始
-    </button>
+    <button class="act act--ghost" id="btnRestart" hidden>重新开始</button>
 
-    <section class="sec">
+    <ul class="pill-facts" aria-label="测评概况">
+      <li><b>62</b> 道题</li>
+      <li><b>12</b> 项维度</li>
+      <li><b>0</b> 上传</li>
+    </ul>
+
+    <section class="sec reveal-group">
       <div class="sec-head">
-        <span class="sec-num">§01</span>
-        <h2 class="sec-title">测评的四个大方向</h2>
-        <span class="sec-note">下面拆成 12 项</span>
+        <h2 class="sec-title">你会拿到什么</h2>
       </div>
-      <div id="clusterIndex"></div>
+      <div class="bento">
+        <article class="bento__card bento__card--wide">
+          <span class="bento__glyph" aria-hidden="true">4</span>
+          <h3>四个大方向 · 12 项天赋</h3>
+          <div id="clusterIndex" class="cluster-index"></div>
+        </article>
+        <article class="bento__card">
+          <span class="bento__glyph" aria-hidden="true">▤</span>
+          <h3>天赋分布图</h3>
+          <p>一眼看到强项在哪</p>
+        </article>
+        <article class="bento__card">
+          <span class="bento__glyph" aria-hidden="true">◎</span>
+          <h3>匹配的方向</h3>
+          <p>能力 × 兴趣双线推导</p>
+        </article>
+        <article class="bento__card bento__card--accent">
+          <span class="bento__glyph" aria-hidden="true">7</span>
+          <h3>7 天验证计划</h3>
+          <p>结论要能落地，不是标签</p>
+        </article>
+        <article class="bento__card bento__card--quiet">
+          <span class="bento__glyph" aria-hidden="true">⌁</span>
+          <h3>62 题 · 三层提问 · 约 8 分钟</h3>
+          <p>行为表现 36 题 · 工作模式 8 题 · 兴趣倾向 18 题</p>
+        </article>
+      </div>
     </section>
 
-    <section class="sec">
-      <div class="sec-head">
-        <span class="sec-num">§02</span>
-        <h2 class="sec-title">这一份和常见的有什么不同</h2>
-      </div>
-      <div class="duo">
-        <div class="cell ok">
-          <h4>不问"你擅长吗"</h4>
-          <p>题目描述的是具体可观察的行为和场景，你回答"这件事多久发生一次"，而不是给自己打分。人对自己的评价最容易失真，对经历的记忆相对可靠。</p>
-        </div>
-        <div class="cell risk">
-          <h4>用取舍代替"我都行"</h4>
-          <p>第二部分每题只有两个方向，必须选一边。这类强制取舍比自评更能测出你真实的工作模式，也更难伪装成"理想中的自己"。</p>
-        </div>
-        <div class="cell">
-          <h4>能力和兴趣分开算</h4>
-          <p>做得动和愿意做是两件事，混在一起算是最常见的错误。本报告把两组分数分开呈现，再叠加推导职业方向。</p>
-        </div>
-        <div class="cell">
-          <h4>结论必须能落地</h4>
-          <p>报告里不止有类型名。每一项优势都配了会踩的坑和马上能试的做法，最后给一份 7 天行动清单。</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="sec">
-      <div class="sec-head">
-        <span class="sec-num">§03</span>
-        <h2 class="sec-title">作答说明</h2>
-      </div>
-      <ul class="ticks">
-        <li>按第一反应作答。反复权衡出来的答案，往往是你"希望成为"的样子，而不是真实的你。</li>
-        <li>没有对错，也不存在好天赋和坏天赋。优势用错场合就是短板。</li>
-        <li>如果你正处在剧烈变化期（换城市、换行业），结果会偏向当下的状态，可以过一段时间再测一次。</li>
-        <li>中途可以离开，进度会自动保留在这台设备上，回来接着做。</li>
-      </ul>
-      <button class="act act--wide" id="btnStart2">开始测评</button>
-    </section>
-
-    <div class="colophon">
+    <footer class="colophon">
       <span>全程本地计算 · 答案不上传</span>
-      <span>理论框架：加德纳多元智能 · 霍兰德职业兴趣</span>
-    </div>
+      <span>加德纳多元智能 · 霍兰德职业兴趣</span>
+    </footer>
   </section>
 
   <!-- ==================== 答题 ==================== -->

@@ -34,6 +34,10 @@
   /* 续做标记：只在从封面进入后渲染的第一道题上提示一次 */
   var resumeHintPending = false;
 
+  /* 点选即前进：普通作答为 true；回看上一题时临时置 false，避免改完立刻跳走 */
+  var autoAdvance = true;
+  var advanceTimer = 0;
+
   var PART_META = {
     A: { label: '第一部分 · 行为表现', title: '先看你怎么做事', sub: '接下来的 36 题，描述的是具体行为和场景。请按最近三个月的真实情况回答：这件事多久发生一次。' },
     B: { label: '第二部分 · 工作模式', title: '两个方向，选一边', sub: '这 8 题没有中间选项。如果两边都不完全符合，选你更靠近的那一侧——差距比绝对值更重要。' },
@@ -41,6 +45,7 @@
   };
 
   var FREQ_MARKS = ['①', '②', '③', '④', '⑤'];
+  function partNo(p) { return p === 'A' ? 1 : p === 'B' ? 2 : 3; }
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -121,9 +126,10 @@
     var meta = PART_META[step.part];
     $('partLabel').textContent = meta.label;
 
-    /* 进度：以已答题数计，段落页显示该段起点 */
+    /* 进度：按"走到了第几步"计，段落页也算一步。
+       用已答题数会让 62 题的进度条始终差一格；这里用当前位置更直观。 */
     var done = answeredCount();
-    var pct = Math.round(done / TOTAL_ITEMS * 100);
+    var pct = Math.round((state.at + (step.kind === 'item' ? 1 : 0)) / steps.length * 100);
     $('railFill').style.width = pct + '%';
     $('railBar').setAttribute('aria-valuenow', pct);
 
@@ -142,14 +148,13 @@
     host.innerHTML = '';
 
     if (step.kind === 'intro') {
-      $('qCounter').textContent = '— / ' + TOTAL_ITEMS;
+      $('qCounter').textContent = partNo(step.part) + ' / 3';
       var box = el('div', 'interlude');
       box.appendChild(el('div', 'num', step.part));
       box.appendChild(el('h2', null, meta.title));
       box.appendChild(el('p', null, meta.sub));
       var go = el('button', 'act', '继续');
-      go.style.marginTop = '2rem';
-      go.addEventListener('click', function () { state.at++; save(); renderStep(); });
+      go.addEventListener('click', function () { autoAdvance = true; state.at++; save(); renderStep(); });
       box.appendChild(go);
       host.appendChild(box);
       return;
@@ -158,17 +163,17 @@
     var numInPart = step.idx + 1;
     var numInPartTotal = B['part' + step.part].length;
     var globalNo = (step.part === 'A' ? 0 : step.part === 'B' ? B.partA.length : B.partA.length + B.partB.length) + numInPart;
-    $('qCounter').textContent = String(globalNo).padStart(2, '0') + ' / ' + TOTAL_ITEMS;
+    /* 计数只保留"第几题 / 共几题"，段落信息交给上面那行小字 */
+    $('qCounter').textContent = globalNo + ' / ' + TOTAL_ITEMS;
 
     var wrap = el('div');
-    wrap.appendChild(el('div', 'q-no', '第 ' + (step.part === 'A' ? '1' : step.part === 'B' ? '2' : '3') +
-      ' 部分 · 第 ' + numInPart + ' / ' + numInPartTotal + ' 题'));
+    wrap.appendChild(el('div', 'q-no', '第 ' + partNo(step.part) + ' 部分 · ' + numInPart + ' / ' + numInPartTotal));
 
     wrap.appendChild(el('p', 'q-text', step.data.text));
     if (resumeHintText) wrap.appendChild(el('p', 'q-hint', resumeHintText));
 
     if (step.part === 'A') {
-      wrap.appendChild(el('p', 'q-hint', B.meta.freqHint + '（' + B.meta.freqScale.join(' · ') + '）'));
+      wrap.appendChild(el('p', 'q-hint', '回想最近三个月，凭第一反应选'));
       var ul = el('ul', 'opts');
       B.meta.freqScale.forEach(function (label, i) {
         var li = el('li');
@@ -177,13 +182,14 @@
         btn.setAttribute('aria-pressed', String(answerOf(step) === i));
         btn.appendChild(el('span', 'mark', FREQ_MARKS[i]));
         btn.appendChild(el('span', 'label', label));
+        btn.appendChild(el('span', 'tick', '✓'));
         btn.addEventListener('click', function () { choose(step, i); });
         li.appendChild(btn);
         ul.appendChild(li);
       });
       wrap.appendChild(ul);
     } else if (step.part === 'C') {
-      wrap.appendChild(el('p', 'q-hint', B.interestHint + '（' + B.interestScale.join(' · ') + '）'));
+      wrap.appendChild(el('p', 'q-hint', '不问会不会，只问你有没有想试的冲动'));
       var ul2 = el('ul', 'opts');
       B.interestScale.forEach(function (label, i) {
         var li = el('li');
@@ -192,6 +198,7 @@
         btn.setAttribute('aria-pressed', String(answerOf(step) === i));
         btn.appendChild(el('span', 'mark', FREQ_MARKS[i]));
         btn.appendChild(el('span', 'label', label));
+        btn.appendChild(el('span', 'tick', '✓'));
         btn.addEventListener('click', function () { choose(step, i); });
         li.appendChild(btn);
         ul2.appendChild(li);
@@ -199,7 +206,7 @@
       wrap.appendChild(ul2);
     } else {
       /* B 部分：先 A/B 强制二选一，再给倾向刻度 */
-      wrap.appendChild(el('p', 'q-hint', '先选更靠近的一侧，再说明程度。'));
+      wrap.appendChild(el('p', 'q-hint', '选更靠近的一侧'));
       var fork = el('div', 'fork');
       [['left', 'A'], ['right', 'B']].forEach(function (pair) {
         var side = step.data[pair[0]];
@@ -218,6 +225,8 @@
       wrap.appendChild(fork);
 
       var between = el('div', 'between');
+      between.setAttribute('role', 'group');
+      between.setAttribute('aria-label', '偏向程度');
       B.axisScale.forEach(function (label, i) {
         var btn = el('button', null, label);
         btn.type = 'button';
@@ -230,15 +239,18 @@
 
     /* 底部导航 */
     var foot = el('div', 'q-foot');
-    var back = el('button', 'back', '‹ 上一题');
+    var back = el('button', 'back', '返回');
     back.type = 'button';
     back.disabled = state.at === 0;
-    back.addEventListener('click', function () { state.at--; save(); renderStep(); });
-    var next = el('button', 'act', state.at === steps.length - 1 ? '生成报告' : '下一题 →');
+    back.addEventListener('click', function () {
+      autoAdvance = false;
+      state.at--; save(); renderStep();
+    });
+    var next = el('button', 'act', state.at === steps.length - 1 ? '查看报告' : '下一题');
     next.type = 'button';
     next.disabled = answerOf(step) === null;
     next.id = 'btnNext';
-    next.addEventListener('click', function () { advance(); });
+    next.addEventListener('click', function () { autoAdvance = true; advance(); });
     foot.appendChild(back);
     foot.appendChild(next);
     wrap.appendChild(foot);
@@ -247,11 +259,27 @@
   }
 
   function choose(step, value) {
+    /* 同一题选了新值：这是用户主动修改，恢复"点选即前进"。
+       只有从底部"返回"回看时才暂时关闭自动跳题。 */
+    autoAdvance = true;
     setAnswer(step, value);
     save();
     renderStep();
-    var btn = $('btnNext');
-    if (btn && !btn.disabled) btn.focus();
+    /* 点选即前进：A / C 段选一个就是完整答案，省掉再点"下一题"。
+       B 段要先选一侧、再选程度，两步都完成才走，否则会打断作答。
+       回看上一题时不自动跳走，否则改完答案会立刻被带走。 */
+    var oneTap = step.part === 'A' || step.part === 'C';
+    if (!autoAdvance || !oneTap) {
+      var btn = $('btnNext');
+      if (btn && !btn.disabled) btn.focus();
+      return;
+    }
+    if (state.at >= steps.length - 1) return;   // 最后一题要留给人确认再出报告
+    window.clearTimeout(advanceTimer);
+    advanceTimer = window.setTimeout(function () {
+      var now = steps[state.at];
+      if (now === step && answerOf(step) !== null) advance();
+    }, 260);
   }
 
   function advance() {
@@ -292,6 +320,26 @@
       });
       var print = $('btnPrint');
       if (print) print.addEventListener('click', function () { window.print(); });
+      /* 报告详情默认收起：先让人一眼读完结论，想深挖再展开 */
+      Array.prototype.forEach.call($('reportBody').querySelectorAll('.more-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          var host = btn.parentNode.querySelector('.more');
+          var open = btn.getAttribute('aria-expanded') === 'true';
+          btn.setAttribute('aria-expanded', String(!open));
+          btn.textContent = open ? '展开细节' : '收起';
+          if (host) host.setAttribute('data-open', String(!open));
+        });
+      });
+      /* 章节级折叠：整行点开，展开后滚动到标题，避免内容在视口外 */
+      Array.prototype.forEach.call($('reportBody').querySelectorAll('.fold-toggle'), function (btn) {
+        btn.addEventListener('click', function () {
+          var sec = btn.closest('.sec--fold');
+          var open = btn.getAttribute('aria-expanded') === 'true';
+          btn.setAttribute('aria-expanded', String(!open));
+          btn.querySelector('.fold-label').textContent = open ? '展开' : '收起';
+          if (sec) sec.classList.toggle('is-open', !open);
+        });
+      });
       try { localStorage.setItem(STORE_KEY + '_last', JSON.stringify(result)); } catch (e) {}
     });
   }
@@ -299,10 +347,9 @@
   /* ---------------- 存档续做 ---------------- */
   function setStartLabels(text) {
     var top = $('btnStart');
+    if (!top) return;
     top.textContent = text;
     top.appendChild(arrowSVG());
-    var bottom = $('btnStart2');
-    if (bottom) bottom.textContent = text;
   }
 
   function renderResumeNote() {
@@ -323,9 +370,8 @@
     if (saved && done > 0) {
       note.hidden = false;
       note.textContent = (done >= TOTAL_ITEMS
-        ? '已答完 ' + TOTAL_ITEMS + ' 题，进度已存在本机。两个入口都会带你回到最后一题生成报告；想从头答，请点下方"重新开始"。'
-        : '上次答到第 ' + (done + 1) + ' 题（共 ' + TOTAL_ITEMS +
-          ' 题），进度已存在本机。两个入口都会从这里继续；想从头答，请点下方"重新开始"。');
+        ? '已答完 ' + TOTAL_ITEMS + ' 题 · 回到最后一题生成报告'
+        : '已答 ' + done + ' / ' + TOTAL_ITEMS + ' 题 · 继续上次');
       setStartLabels('继续上次');
       if (reset) reset.hidden = false;
     } else {
@@ -363,7 +409,6 @@
 
   /* ---------------- 事件绑定 ---------------- */
   $('btnStart').addEventListener('click', start);
-  $('btnStart2').addEventListener('click', start);
 
   var restartBtn = $('btnRestart');
   if (restartBtn) {
@@ -396,40 +441,65 @@
     if (step.kind !== 'item') return;
     var n = parseInt(e.key, 10);
     var max = step.part === 'A' || step.part === 'C' ? 4 : 4;
-    if (n >= 1 && n <= max + 1) { choose(step, n - 1); return; }
+    if (n >= 1 && n <= max + 1) { autoAdvance = true; choose(step, n - 1); return; }
     if (e.key === 'ArrowRight' || e.key === 'Enter') {
       if (answerOf(step) !== null) { e.preventDefault(); advance(); }
     }
-    if (e.key === 'ArrowLeft' && state.at > 0) { state.at--; save(); renderStep(); }
+    if (e.key === 'ArrowLeft' && state.at > 0) { autoAdvance = false; state.at--; save(); renderStep(); }
   });
 
   R.renderIndex($('clusterIndex'));
 
-  /* 入场：封面内容分批浮入。
-     注意：内容可见性依赖 is-in，所以除了双 rAF 还加一个超时兜底，
-     任何异常都不会把首屏留在"透明但占位"的状态。 */
+  /* 入场：首屏内容立即浮入，靠后的卡片滚动到视口时再浮入。
+     兜底策略不变：即使 IntersectionObserver 不可用，也会直接显示，不会卡在透明态。 */
   (function intro() {
     var cover = $('screen-cover');
-    var targets = ['.kicker', '#coverTitle', '.sub', '.facts', '#btnStart'];
+    var targets = ['.kicker', '#coverTitle', '.sub', '#btnStart', '.pill-facts'];
     var nodes = targets.map(function (s) { return cover.querySelector(s); }).filter(Boolean);
-    var secs = cover.querySelectorAll('.sec');
-    Array.prototype.forEach.call(secs, function (s) { nodes.push(s); });
     nodes.forEach(function (n, i) {
       n.classList.add('reveal');
-      n.style.transitionDelay = Math.min(i * 55, 330) + 'ms';
+      n.style.transitionDelay = Math.min(i * 70, 350) + 'ms';
     });
     function reveal() {
       cover.classList.add('is-in');
-      /* 动画结束后清掉延迟，否则会拖慢按钮等元素的 hover 过渡 */
       setTimeout(function () {
         nodes.forEach(function (n) { n.style.transitionDelay = ''; });
-      }, 900);
+      }, 1100);
     }
     requestAnimationFrame(function () {
       requestAnimationFrame(reveal);
     });
-    setTimeout(reveal, 900);
+
+    /* 滚动浮入：卡片逐个进入视口时上浮 */
+    var cards = cover.querySelectorAll('.bento__card, .colophon, .sec-head');
+    if ('IntersectionObserver' in window) {
+      Array.prototype.forEach.call(cards, function (n) {
+        n.classList.add('reveal');
+      });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var n = entry.target;
+          var idx = Array.prototype.indexOf.call(cards, n);
+          n.style.transitionDelay = Math.min((idx % 4) * 65, 195) + 'ms';
+          n.classList.add('is-in');
+          io.unobserve(n);
+        });
+      }, { rootMargin: '0px 0px -8% 0px', threshold: .12 });
+      Array.prototype.forEach.call(cards, function (n) { io.observe(n); });
+      setTimeout(function () {
+        Array.prototype.forEach.call(cards, function (n) { n.classList.add('is-in'); });
+      }, 6000);
+    }
   })();
+
+  /* 答题页顶栏：有内容滚过时出现细分割线，避免毛玻璃层边界糊在一起 */
+  var quizTop = document.querySelector('.quiz-top');
+  if (quizTop) {
+    window.addEventListener('scroll', function () {
+      quizTop.classList.toggle('is-scrolled', window.scrollY > 8);
+    }, { passive: true });
+  }
 
   renderResumeNote();
   window.TalentApp = { start: start, state: state };

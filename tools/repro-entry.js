@@ -1,4 +1,4 @@
-/* 复现：封面两个"开始测评"入口的状态与续做行为是否一致 */
+/* 复现：封面入口的状态与续做行为 */
 const puppeteer = require('puppeteer-core');
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -25,13 +25,13 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4321/';
 
   const cover = await page.evaluate(() => ({
     topBtn: document.getElementById('btnStart').textContent.trim(),
-    bottomBtn: document.getElementById('btnStart2').textContent.trim(),
+    bottomBtn: '(single entry)',
     note: document.getElementById('resumeNote').hidden ? '(hidden)' : document.getElementById('resumeNote').textContent
   }));
   console.log('COVER:', JSON.stringify(cover));
 
-  // 从底部按钮进入
-  await page.click('#btnStart2');
+  // 从封面主按钮进入
+  await page.click('#btnStart');
   await new Promise((r) => setTimeout(r, 400));
   const after = await page.evaluate(() => {
     const sel = document.querySelector('.opt[aria-pressed="true"]');

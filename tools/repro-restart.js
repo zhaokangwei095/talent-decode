@@ -62,10 +62,10 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4321/';
   await new Promise((r) => setTimeout(r, 300));
   check('清空后封面回到开始测评', await page.evaluate(() => ({
     top: document.getElementById('btnStart').textContent.trim(),
-    bottom: document.getElementById('btnStart2').textContent.trim(),
+    bottom: '(single entry)',
     noteHidden: document.getElementById('resumeNote').hidden,
     restartHidden: document.getElementById('btnRestart').hidden
-  })), { top: '开始测评', bottom: '开始测评', noteHidden: true, restartHidden: true });
+  })), { top: '开始测评', bottom: '(single entry)', noteHidden: true, restartHidden: true });
 
   console.log(fail.length ? '\n有 ' + fail.length + ' 项失败' : '\n全部通过');
   await browser.close();

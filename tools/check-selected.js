@@ -15,9 +15,10 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4321/';
   await page.reload({ waitUntil: 'networkidle2' });
   await page.click('#btnStart');
   await page.evaluate(() => document.querySelector('.interlude .act').click());
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 120));
+  /* 在自动跳题的 260ms 之前采样，否则会读到下一题的空选中态 */
   await page.keyboard.press('3');
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 100));
 
   const s = await page.evaluate(() => {
     const o = document.querySelector('.opt[aria-pressed="true"]');

@@ -1,5 +1,5 @@
 /* 忠实复现用户描述：答到最后一题后不生成报告，直接点"退出"，
-   再刷新页面 → 点两个入口中的任意一个，看是否"重新答题" */
+   再刷新页面 → 点唯一入口，看是否"重新答题" */
 const puppeteer = require('puppeteer-core');
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -41,7 +41,7 @@ const TOTAL = 62;
       savedAt: saved && saved.at,
       savedAnswered: saved ? saved.a.concat(saved.b, saved.c).filter((v) => v !== null).length : null,
       top: document.getElementById('btnStart').textContent.trim(),
-      bottom: document.getElementById('btnStart2').textContent.trim(),
+    bottom: (document.getElementById('btnStart2') || {}).textContent || '(none)',
       restartHidden: document.getElementById('btnRestart').hidden,
       note: document.getElementById('resumeNote').hidden ? '(hidden)' : document.getElementById('resumeNote').textContent
     };
@@ -58,7 +58,7 @@ const TOTAL = 62;
   await f.evaluate(() => document.getElementById('btnStart').click());
   await new Promise((r) => setTimeout(r, 300));
 
-  /* 走完全部 62 题：最后一题只作答，不点"生成报告" */
+  /* 走完全部 62 题：最后一题只作答，不点"查看报告" */
   let answered = 0;
   for (let guard = 0; guard < 300 && answered < TOTAL; guard++) {
     const kind = await f.evaluate(() => {
@@ -84,7 +84,7 @@ const TOTAL = 62;
   }
   console.log('已在最后一题作答 ' + answered + ' 题：', JSON.stringify(await snap(f), null, 1));
 
-  /* 用户点"退出"而不是"生成报告" */
+  /* 用户点"退出"而不是"查看报告" */
   await f.evaluate(() => document.getElementById('btnQuit').click());
   await new Promise((r) => setTimeout(r, 500));
   console.log('\n[1] 点退出后的封面:', JSON.stringify(await snap(f), null, 1));
@@ -95,10 +95,10 @@ const TOTAL = 62;
   f = await appFrame();
   console.log('\n[2] 刷新后的封面:', JSON.stringify(await snap(f), null, 1));
 
-  /* 从底部第三个入口进入 */
-  await f.evaluate(() => document.getElementById('btnStart2').click());
+  /* 再点主入口进入 */
+  await f.evaluate(() => document.getElementById('btnStart').click());
   await new Promise((r) => setTimeout(r, 500));
-  console.log('\n[3] 点 §03 底部入口后:', JSON.stringify(await snap(f), null, 1));
+  console.log('\n[3] 点封面唯一入口后:', JSON.stringify(await snap(f), null, 1));
   console.log('    预选项:', await f.evaluate(() => {
     const o = document.querySelector('.opt[aria-pressed="true"]');
     return o ? o.textContent.trim() : '(none)';

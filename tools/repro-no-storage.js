@@ -4,6 +4,20 @@ const puppeteer = require('puppeteer-core');
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const BASE = process.argv[2] || 'http://127.0.0.1:4321/';
 
+/* A/C 段点第 3 个选项；B 段先点左侧方向，再点中间程度。 */
+const answerOne = (page) => page.evaluate(() => {
+  const side = document.querySelector('.side');
+  if (side) {
+    side.click();
+    const between = document.querySelectorAll('.between button');
+    if (between[2]) { between[2].click(); return 'side+between'; }
+    return 'side';
+  }
+  const opts = document.querySelectorAll('.opt');
+  if (opts.length) { opts[2].click(); return 'opt'; }
+  return 'none';
+});
+
 (async () => {
   const browser = await puppeteer.launch({
     executablePath: CHROME, headless: 'new', args: ['--no-sandbox']
@@ -52,25 +66,21 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4321/';
       await new Promise((r) => setTimeout(r, 120));
       continue;
     }
-    if (st === '生成报告') {
-      await page.evaluate(() => {
-        const side = document.querySelector('.side');
-        if (side) { side.click(); return; }
-        const o = document.querySelectorAll('.opt');
-        if (o.length) o[2].click();
-      });
-      await new Promise((r) => setTimeout(r, 150));
+    if (st === '查看报告') {
+      /* 最后一题只作答，点击"查看报告"留到循环后统一处理 */
+      await answerOne(page);
+      await new Promise((r) => setTimeout(r, 180));
       break;
     }
+    await answerOne(page);
+    /* A/C 段选中后自动前进；B 段要先选方向再选程度，
+       等自动计时器不会触发，所以这里显式点一次"下一题"。 */
+    await new Promise((r) => setTimeout(r, 60));
     await page.evaluate(() => {
-      const side = document.querySelector('.side');
-      if (side) { side.click(); return; }
-      const o = document.querySelectorAll('.opt');
-      if (o.length) o[2].click();
+      const n = document.getElementById('btnNext');
+      if (n && !n.disabled) n.click();
     });
-    await new Promise((r) => setTimeout(r, 110));
-    await page.click('#btnNext');
-    await new Promise((r) => setTimeout(r, 110));
+    await new Promise((r) => setTimeout(r, 360));
   }
   await page.click('#btnNext');
   await new Promise((r) => setTimeout(r, 1000));
