@@ -1,4 +1,4 @@
-/* 答题切换回归：确认点选时旧题不重绘，且新题只在延迟结束后替换一次。 */
+/* 答题切换回归：确认点选时旧题不重绘，且新题首帧可见、不会闪白。 */
 const puppeteer = require('puppeteer-core');
 
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -27,7 +27,7 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4399/';
   /* 标记当前节点，确认点选期间没有被 innerHTML 重绘替换。 */
   await page.evaluate(() => { document.querySelector('.q-step').dataset.probe = 'same'; });
   await page.keyboard.press('4');
-  await new Promise((r) => setTimeout(r, 80));
+  await new Promise((r) => setTimeout(r, 60));
   const selected = await page.evaluate(() => {
     const step = document.querySelector('.q-step');
     const opt = document.querySelector('.opt[aria-pressed="true"]');
@@ -39,7 +39,7 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4399/';
     };
   });
   await page.keyboard.press('3');
-  await new Promise((r) => setTimeout(r, 80));
+  await new Promise((r) => setTimeout(r, 60));
   const repaint = await page.evaluate(() => {
     const step = document.querySelector('.q-step');
     const opt = document.querySelector('.opt[aria-pressed="true"]');
@@ -51,19 +51,29 @@ const BASE = process.argv[2] || 'http://127.0.0.1:4399/';
       nextDisabled: document.getElementById('btnNext').disabled
     };
   });
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 80));
+  await page.waitForFunction(
+    (oldNo) => document.querySelector('.q-no').textContent !== oldNo,
+    { timeout: 1000 },
+    repaint.no
+  );
   const after = await page.evaluate(() => ({
     no: document.querySelector('.q-no').textContent,
     text: document.querySelector('.q-text').textContent,
-    animation: getComputedStyle(document.querySelector('.q-step')).animationName
+    animation: getComputedStyle(document.querySelector('.q-step')).animationName,
+    opacity: Number(getComputedStyle(document.querySelector('.q-step')).opacity),
+    offset: getComputedStyle(document.querySelector('.q-step')).transform
   }));
+  await new Promise((r) => setTimeout(r, 300));
 
   console.log(JSON.stringify({ before, selected, repaint, after, errors }, null, 2));
   if (repaint.no !== before.no || repaint.text !== before.text || !repaint.sameNode) {
     throw new Error('点选时旧题被重绘，仍会闪帧');
   }
   if (after.no === before.no) throw new Error('自动换题未发生');
-  if (after.animation !== 'question-in') throw new Error('新题动画不正确');
+  if (after.animation !== 'question-slide') throw new Error('新题动画不正确');
+  if (after.opacity !== 1) throw new Error('切换过程改变了透明度，仍会闪白');
+  if (after.offset === 'none') throw new Error('新题缺少推入过渡');
   if (errors.length) throw new Error(errors.join('\n'));
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

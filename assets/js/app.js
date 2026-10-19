@@ -303,7 +303,7 @@
     advanceTimer = window.setTimeout(function () {
       var now = steps[state.at];
       if (token === stepToken && now === step && answerOf(step) !== null) advance();
-    }, 340);
+    }, 260);
   }
 
   function advance() {

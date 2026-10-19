@@ -1546,12 +1546,15 @@ h1, h2, h3, h4 {
   max-width: 26em;
 }
 
-/* 每题切换：先让选中反馈落定，再换题；新题只做轻微淡入，不做位移动画。 */
-@keyframes question-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+/* 每题切换：只做轻微横向推入，不改透明度，避免任何闪白/闪旧题。 */
+@keyframes question-slide {
+  from { transform: translate3d(14px, 0, 0) scale(.995); }
+  to   { transform: translate3d(0, 0, 0) scale(1); }
 }
-#quizBody > .q-step { animation: question-in .28s var(--ease-apple) both; }
+#quizBody > .q-step {
+  animation: question-slide .26s var(--ease-apple);
+  will-change: transform;
+}
 #quizBody > .interlude { animation: rise .48s var(--ease-apple) both; }
 
 /* 焦点环用蓝色，且只在键盘操作时出现；
@@ -1921,6 +1924,7 @@ h1, h2, h3, h4 {
 
 @media (prefers-reduced-motion: reduce) {
   .sheet::before { animation: none; }
+  #quizBody > .q-step, #quizBody > .interlude { animation: none; }
   .opt, .side, .act, .career, .bento__card { transition-duration: .001ms !important; }
 }
 
