@@ -1546,8 +1546,13 @@ h1, h2, h3, h4 {
   max-width: 26em;
 }
 
-/* 每题切换：淡入上浮 */
-#quizBody > div { animation: rise .42s var(--ease-apple) both; }
+/* 每题切换：先让选中反馈落定，再换题；新题只做轻微淡入，不做位移动画。 */
+@keyframes question-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#quizBody > .q-step { animation: question-in .28s var(--ease-apple) both; }
+#quizBody > .interlude { animation: rise .48s var(--ease-apple) both; }
 
 /* 焦点环用蓝色，且只在键盘操作时出现；
    鼠标点过的选项不再保留深色描边，避免看起来像"已选中"。 */

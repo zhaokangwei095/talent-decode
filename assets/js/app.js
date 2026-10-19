@@ -37,6 +37,7 @@
   /* 点选即前进：普通作答为 true；回看上一题时临时置 false，避免改完立刻跳走 */
   var autoAdvance = true;
   var advanceTimer = 0;
+  var stepToken = 0;
 
   var PART_META = {
     A: { label: '第一部分 · 行为表现', title: '先看你怎么做事', sub: '接下来的 36 题，描述的是具体行为和场景。请按最近三个月的真实情况回答：这件事多久发生一次。' },
@@ -121,6 +122,8 @@
 
   /* ---------------- 答题渲染 ---------------- */
   function renderStep() {
+    stepToken++;
+    window.clearTimeout(advanceTimer);
     var step = steps[state.at];
     var host = $('quizBody');
     var meta = PART_META[step.part];
@@ -166,7 +169,7 @@
     /* 计数只保留"第几题 / 共几题"，段落信息交给上面那行小字 */
     $('qCounter').textContent = globalNo + ' / ' + TOTAL_ITEMS;
 
-    var wrap = el('div');
+    var wrap = el('div', 'q-step');
     wrap.appendChild(el('div', 'q-no', '第 ' + partNo(step.part) + ' 部分 · ' + numInPart + ' / ' + numInPartTotal));
 
     wrap.appendChild(el('p', 'q-text', step.data.text));
@@ -258,28 +261,49 @@
     host.appendChild(wrap);
   }
 
+  function paintSelection(step, value) {
+    var wrap = $('quizBody').firstElementChild;
+    if (!wrap) return;
+    var buttons;
+    if (step.part === 'B') {
+      buttons = wrap.querySelectorAll('.fork .side, .between button');
+    } else {
+      buttons = wrap.querySelectorAll('.opt');
+    }
+    Array.prototype.forEach.call(buttons, function (btn, i) {
+      var own;
+      if (step.part === 'B') {
+        own = i < 2 ? (i === 0 ? value <= 1 : value >= 3) : value === i - 2;
+      } else {
+        own = value === i;
+      }
+      btn.setAttribute('aria-pressed', String(own));
+    });
+    var next = $('btnNext');
+    if (next) next.disabled = false;
+  }
+
   function choose(step, value) {
     /* 同一题选了新值：这是用户主动修改，恢复"点选即前进"。
        只有从底部"返回"回看时才暂时关闭自动跳题。 */
     autoAdvance = true;
     setAnswer(step, value);
     save();
-    renderStep();
+    paintSelection(step, value);
     /* 点选即前进：A / C 段选一个就是完整答案，省掉再点"下一题"。
        B 段要先选一侧、再选程度，两步都完成才走，否则会打断作答。
        回看上一题时不自动跳走，否则改完答案会立刻被带走。 */
     var oneTap = step.part === 'A' || step.part === 'C';
     if (!autoAdvance || !oneTap) {
-      var btn = $('btnNext');
-      if (btn && !btn.disabled) btn.focus();
       return;
     }
     if (state.at >= steps.length - 1) return;   // 最后一题要留给人确认再出报告
     window.clearTimeout(advanceTimer);
+    var token = stepToken;
     advanceTimer = window.setTimeout(function () {
       var now = steps[state.at];
-      if (now === step && answerOf(step) !== null) advance();
-    }, 260);
+      if (token === stepToken && now === step && answerOf(step) !== null) advance();
+    }, 340);
   }
 
   function advance() {
